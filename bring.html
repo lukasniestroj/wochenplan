@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>In Bring! öffnen</title>
+<style>
+body{font:17px/1.5 system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;background:#fbf8f3;color:#2b2620;text-align:center}
+a.btn{display:block;margin:18px 0;padding:16px;border-radius:999px;background:#e2463b;color:#fff;font-weight:700;text-decoration:none;font-size:18px}
+a.alt{display:block;margin-top:10px;color:#7a7066;font-size:15px}
+p.hint{color:#7a7066;font-size:14px}
+</style></head>
+<body>
+<h1 id="t">In Bring! übernehmen</h1>
+<a class="btn" id="app" href="#">Bring!-App öffnen</a>
+<p class="hint">Öffnet die Bring!-App direkt und übernimmt die Zutaten.</p>
+<a class="alt" id="web" href="#">Stattdessen in Bring! Web öffnen</a>
+<script>
+{
+  const q = new URLSearchParams(location.search);
+  const src = q.get('src') || '';
+  const name = q.get('name');
+  if (name) document.getElementById('t').textContent = name;
+  const path = 'import?type=RECIPE&src=' + encodeURIComponent(src);
+  const web = 'https://web.getbring.com/import/login?type=RECIPE&src=' + encodeURIComponent(src);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const appHref = isAndroid
+    ? 'intent://deeplink.getbring.com/' + path + '#Intent;scheme=https;package=ch.publisheria.bring;S.browser_fallback_url=' + encodeURIComponent(web) + ';end'
+    : 'https://deeplink.getbring.com/' + path;
+  document.getElementById('app').href = appHref;
+  document.getElementById('web').href = web;
+  if (!src) document.getElementById('t').textContent = 'Kein Rezept angegeben';
+  else if (isAndroid || isIOS) setTimeout(() => { location.href = appHref; }, 300);
+}
+</script>
+</body></html>
