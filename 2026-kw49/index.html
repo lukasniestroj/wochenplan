@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Essensplan</title>
+<style>
+  :root{--bg:#fbf8f3;--card:#fff;--ink:#2b2620;--muted:#7a7066;--line:#ece4d8;--accent:#c4552d;--bring:#e2463b;--ok:#3f7d4e}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+  h1{font-size:1.7rem;margin:0 0 4px}
+  h2{font-size:1.25rem;margin:40px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+  h3{margin:0;font-size:1.15rem}
+  .sub{color:var(--muted);margin:0 0 16px}
+  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .bar label{font-weight:600}
+  .bar input{width:64px;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:8px}
+  .hint{color:var(--muted);font-size:.85rem}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f4ede3;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  tr:last-child td{border-bottom:0}
+  td a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px dashed var(--accent)}
+  .recipe{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0;scroll-margin-top:12px}
+  .rhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start}
+  .day{color:var(--accent);font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+  .meta{color:var(--muted);font-size:.9rem;margin-top:2px}
+  .meta a{color:var(--muted)}
+  .cols{display:grid;grid-template-columns:1fr 1.4fr;gap:18px;margin-top:12px}
+  @media(max-width:640px){.cols{grid-template-columns:1fr}}
+  ul.ing{margin:0;padding-left:18px} ol.steps{margin:0;padding-left:20px}
+  .note{background:#fff6e6;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:.9rem}
+  .bring{display:inline-flex;align-items:center;gap:8px;background:var(--bring);color:#fff;text-decoration:none;font-weight:700;padding:8px 14px;border-radius:999px;white-space:nowrap}
+  .bring:hover{filter:brightness(.93)}
+  .bring svg{width:18px;height:18px}
+  .groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .group{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .group h4{margin:0 0 6px;font-size:.95rem}
+  .group label{display:flex;gap:8px;padding:3px 0;cursor:pointer}
+  .group input:checked+span{text-decoration:line-through;color:var(--muted)}
+  .used{color:var(--muted);font-size:.8rem}
+  .btn{font:inherit;font-weight:600;background:var(--ink);color:#fff;border:0;border-radius:999px;padding:8px 14px;cursor:pointer}
+  .bring.week{background:var(--ink)}
+  .bringlist{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}
+  textarea#copybox{width:100%;height:160px;margin-top:10px;display:none;font:14px/1.4 ui-monospace,monospace}
+  footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+  @media print{.bar,.bring,.btn,.bringlist{display:none}.recipe{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+
+  <div class="bar">
+    <label for="portions">Portionen</label>
+    <input id="portions" type="number" min="1" max="12" step="1">
+    <span class="hint">Ändert die Mengen auf dieser Seite und in allen Bring!-Buttons.</span>
+  </div>
+
+  <h2>Wochenübersicht</h2>
+  <table>
+    <thead><tr><th>Tag</th><th>Gericht</th><th>Zeit</th></tr></thead>
+    <tbody id="overview"></tbody>
+  </table>
+
+  <h2>Rezepte</h2>
+  <div id="recipes"></div>
+
+  <h2>Einkaufsliste</h2>
+  <p class="hint">„Ganze Woche in Bring!“ übernimmt die komplette Liste unten (ohne Vorräte) auf einmal. Alternativ einzelne Tage übernehmen.</p>
+  <div class="bringlist" id="bringlist"></div>
+  <div class="groups" id="shopping"></div>
+  <p style="margin-top:14px"><button class="btn" id="copy">Liste als Text kopieren</button> <span class="hint" id="copymsg"></span></p>
+  <textarea id="copybox" readonly></textarea>
+
+  <footer id="footer"></footer>
+</main>
+
+<script>
+/* ===== DATEN: nur dieser Block wird pro Woche ersetzt ===== */
+const PLAN = {"titel": "Essensplan KW 49", "untertitel": "Mittagessen · Mo 30.11. – So 06.12.2026", "portionen": 3, "fusszeile": "Kurzrezepte frei zusammengefasst nach den verlinkten Vorlagen (lecker.de), Mengen für 3 Portionen. Bring!-Import über lukasniestroj.github.io/wochenplan.", "tage": [{"id": "mo", "tag": "Montag", "datum": "30.11.", "gericht": "Klassische Kürbissuppe mit Hokkaido und Baguette", "minuten": 35, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/klassische-kuerbissuppe-mit-hokkaido-79938.html", "quelle_portionen": 4, "zutaten": [{"n": 600, "u": "g", "name": "Hokkaido-Kürbis"}, {"n": 1, "u": "", "name": "Zwiebel"}, {"n": 1, "u": "", "name": "Knoblauchzehe"}, {"n": 1.5, "u": "EL", "name": "Butter"}, {"n": 750, "u": "ml", "name": "Gemüsebrühe"}, {"n": 75, "u": "ml", "name": "Schlagsahne"}, {"n": null, "u": "etwas", "name": "Petersilie"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}, {"n": 1, "u": "", "name": "Baguette"}], "schritte": ["Kürbis waschen, vierteln, Kerne herauskratzen und das Fruchtfleisch mit Schale grob würfeln. Zwiebel und Knoblauch fein hacken.", "Butter im Topf schmelzen, Zwiebel und Knoblauch glasig dünsten, Kürbis kurz mitdünsten.", "Brühe angießen, leicht salzen und pfeffern, zugedeckt etwa 15 Minuten weich köcheln.", "Den Großteil der Sahne zugeben, alles fein pürieren und abschmecken.", "Mit einem Klecks Sahne und gehackter Petersilie servieren, dazu Baguette."], "tipp": "Hokkaido muss nicht geschält werden – das spart Zeit. Chiliflocken nur für die Erwachsenen am Tisch. Restliche Sahne und Petersilie werden am Dienstag gebraucht.", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/mo.html"}, {"id": "di", "tag": "Dienstag", "datum": "01.12.", "gericht": "Spaghetti mit Hack-Rahm-Porree", "minuten": 30, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/spaghetti-mit-hack-rahm-porree-65489.html", "quelle_portionen": 4, "zutaten": [{"n": 300, "u": "g", "name": "Spaghetti"}, {"n": 300, "u": "g", "name": "Hackfleisch gemischt"}, {"n": 200, "u": "g", "name": "Porree"}, {"n": 200, "u": "g", "name": "Champignons"}, {"n": 1.5, "u": "EL", "name": "Öl"}, {"n": 300, "u": "ml", "name": "Gemüsebrühe"}, {"n": 75, "u": "g", "name": "Schlagsahne"}, {"n": 2, "u": "EL", "name": "Soßenbinder hell"}, {"n": 25, "u": "g", "name": "Parmesan"}, {"n": null, "u": "etwas", "name": "Petersilie"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}, {"n": null, "u": "", "name": "Paprika edelsüß"}], "schritte": ["Porree putzen, gründlich waschen und in Ringe schneiden; Champignons putzen und vierteln.", "Spaghetti in Salzwasser bissfest kochen und abgießen.", "Währenddessen Hack in heißem Öl krümelig braten, Porree und Pilze zugeben und mitbraten.", "Mit Brühe und Sahne ablöschen, aufkochen und mit Soßenbinder leicht andicken.", "Mild mit Salz, Pfeffer und Paprika würzen, Parmesan unterrühren und mit den Nudeln und Petersilie servieren."], "tipp": "Wer keine Pilze mag: Champignons sehr klein würfeln oder durch geraspelte Möhre ersetzen. Übrige Sahne und Porree für Freitag aufheben.", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/di.html"}, {"id": "mi", "tag": "Mittwoch", "datum": "02.12.", "gericht": "Seelachsfilet auf Kartoffel-Gemüse-Püree", "minuten": 30, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/seelachsfilet-auf-kartoffelpueree-27594.html", "quelle_portionen": 1, "zutaten": [{"n": 750, "u": "g", "name": "Kartoffeln"}, {"n": 1.5, "u": "TL", "name": "Gemüsebrühe"}, {"n": 2, "u": "", "name": "Zwiebeln"}, {"n": 2, "u": "", "name": "Paprikaschoten"}, {"n": 3, "u": "", "name": "Lauchzwiebeln"}, {"n": 1, "u": "EL", "name": "Butter"}, {"n": 375, "u": "g", "name": "Seelachsfilet"}, {"n": 1.5, "u": "TL", "name": "Öl"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}, {"n": 1, "u": "", "name": "Zitrone"}], "schritte": ["Kartoffeln schälen, klein würfeln und mit ca. 150 ml Wasser und der Instant-Brühe zugedeckt 15–20 Minuten weich garen.", "Zwiebeln in Ringe, Paprika in kleine Würfel und Lauchzwiebeln in Ringe schneiden.", "Zwiebeln in Butter goldgelb braten, Paprika und Lauchzwiebeln kurz mitdünsten.", "Fisch in Portionsstücke teilen, in Öl je Seite 1–2 Minuten braten, salzen und pfeffern.", "Kartoffeln samt Garflüssigkeit zerstampfen, das Gemüse unterheben und mit dem Fisch anrichten."], "tipp": "Fisch vor dem Braten auf Gräten prüfen. Paprika hat im Dezember keine Saison – saisonal und günstiger geht es mit 2–3 fein gewürfelten Möhren, die einfach mit den Kartoffeln gegart werden.", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/mi.html"}, {"id": "do", "tag": "Donnerstag", "datum": "03.12.", "gericht": "Pfannkuchen mit Apfelmus", "minuten": 30, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/pfannkuchenteig-das-einfache-grundrezept-51055.html", "quelle_portionen": 3, "zutaten": [{"n": 500, "u": "ml", "name": "Milch"}, {"n": 250, "u": "g", "name": "Mehl"}, {"n": 3, "u": "", "name": "Eier"}, {"n": 1, "u": "Prise", "name": "Salz"}, {"n": 1, "u": "Prise", "name": "Zucker"}, {"n": null, "u": "", "name": "Öl"}, {"n": 1, "u": "Glas", "name": "Apfelmus"}], "schritte": ["Milch in eine Schüssel geben, Mehl dazusieben und klümpchenfrei verrühren.", "Eier, Salz und Zucker unterrühren; den Teig etwa 15 Minuten quellen lassen.", "Wenig Öl in einer beschichteten Pfanne erhitzen, je eine Kelle Teig hineingeben und bei mittlerer Hitze von jeder Seite 2–3 Minuten goldbraun backen.", "Fertige Pfannkuchen im Ofen bei 50 °C warm halten und mit Apfelmus servieren."], "tipp": "Die ganze Teigmenge (ca. 8 Pfannkuchen) entspricht hier den 3 Portionen. Herzhafte Variante für Erwachsene: mit Käse und Schinken belegen.", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/do.html"}, {"id": "fr", "tag": "Freitag", "datum": "04.12.", "gericht": "Hähnchenpfanne mit Möhren und Porree in Senf-Sahnesoße, dazu Reis", "minuten": 25, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/gefluegel-pfanne-mit-moehren-und-porree-senf-sahnesosse-3367.html", "quelle_portionen": 2, "zutaten": [{"n": 450, "u": "g", "name": "Hähnchenbrustfilet"}, {"n": 300, "u": "g", "name": "Möhren"}, {"n": 375, "u": "g", "name": "Porree"}, {"n": 1, "u": "", "name": "Zwiebel"}, {"n": 2, "u": "EL", "name": "Öl"}, {"n": 150, "u": "ml", "name": "Gemüsebrühe"}, {"n": 150, "u": "g", "name": "Schlagsahne"}, {"n": 2, "u": "EL", "name": "Senf körnig"}, {"n": 1.5, "u": "EL", "name": "Soßenbinder hell"}, {"n": 200, "u": "g", "name": "Reis"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}], "schritte": ["Reis nach Packungsangabe kochen.", "Möhren schälen und in Scheiben, Porree in Ringe schneiden, Zwiebel würfeln, Hähnchen in mundgerechte Würfel schneiden.", "Hähnchen in heißem Öl rundum durchbraten, herausnehmen.", "Gemüse im Bratfett andünsten, würzen, Brühe angießen und etwa 8 Minuten sanft köcheln.", "Sahne und Senf einrühren, aufkochen, mit Soßenbinder binden, Fleisch wieder zugeben, erhitzen und abschmecken."], "tipp": "Senf vorsichtig dosieren (für Kinder erst 1 EL, am Tisch nachwürzen).", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/fr.html"}, {"id": "sa", "tag": "Samstag", "datum": "05.12.", "gericht": "Kartoffelsuppe mit Würstchen", "minuten": 30, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/kartoffelsuppe-mit-wuerstchen-46923.html", "quelle_portionen": 4, "zutaten": [{"n": 600, "u": "g", "name": "Kartoffeln"}, {"n": 3, "u": "", "name": "Wiener Würstchen"}, {"n": 1, "u": "EL", "name": "Butter"}, {"n": 75, "u": "g", "name": "Schinkenwürfel"}, {"n": 1.5, "u": "EL", "name": "Gemüsebrühe"}, {"n": 75, "u": "g", "name": "Suppengrün TK"}, {"n": null, "u": "etwas", "name": "Petersilie"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}], "schritte": ["Kartoffeln schälen und klein würfeln, Würstchen in Scheiben schneiden.", "Butter im großen Topf erhitzen, Würstchen kurz anbraten und herausnehmen; Schinkenwürfel im Fett anbraten.", "750 ml Wasser, Instant-Brühe, gefrorenes Suppengrün und Kartoffeln zugeben, zugedeckt aufkochen und etwa 15 Minuten köcheln.", "Würstchen wieder in die Suppe geben und heiß werden lassen, abschmecken und mit Petersilie bestreuen."], "tipp": "Für die Vierjährige die Würstchen längs halbieren und dann klein schneiden (runde Scheiben sind ein Verschluckungsrisiko).", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/sa.html"}, {"id": "so", "tag": "Sonntag", "datum": "06.12.", "gericht": "Schupfnudelpfanne mit Spitzkohl und Speck", "minuten": 20, "quelle_name": "LECKER", "quelle_url": "https://www.lecker.de/deftige-schupfnudelpfanne-mit-spitzkohl-81481.html", "quelle_portionen": 4, "zutaten": [{"n": 375, "u": "g", "name": "Schupfnudeln"}, {"n": 525, "u": "g", "name": "Spitzkohl"}, {"n": 100, "u": "g", "name": "Speck geräuchert"}, {"n": 2, "u": "", "name": "Zwiebeln"}, {"n": 150, "u": "g", "name": "Crème fraîche"}, {"n": null, "u": "", "name": "Salz"}, {"n": null, "u": "", "name": "Pfeffer"}], "schritte": ["Speck in einer großen Pfanne ohne Fett bei mittlerer Hitze knusprig auslassen und auf Küchenpapier abtropfen lassen.", "Zwiebeln fein würfeln, Spitzkohl vierteln und bis zum Strunk in feine Streifen schneiden.", "Schupfnudeln im Speckfett etwa 4 Minuten goldbraun braten und herausnehmen.", "Zwiebeln und Kohl 2–3 Minuten anbraten, Schupfnudeln und Speck zurückgeben.", "Crème fraîche unterrühren, 4–5 Minuten garen und mit Salz und Pfeffer abschmecken."], "tipp": "Nikolaustag: schnelles Sonntagsessen. Speck ist salzig – erst am Ende vorsichtig nachsalzen.", "bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/so.html"}], "einkauf": [{"abteilung": "Obst & Gemüse", "artikel": [{"name": "Hokkaido-Kürbis", "n": 600, "u": "g", "fuer": "Mo"}, {"name": "Kartoffeln", "n": 1350, "u": "g", "fuer": "Mi, Sa"}, {"name": "Zwiebeln", "n": 6, "u": "", "fuer": "Mo, Mi, Fr, So"}, {"name": "Knoblauch", "n": 1, "u": "", "fuer": "Mo"}, {"name": "Porree", "n": 575, "u": "g", "fuer": "Di, Fr"}, {"name": "Möhren", "n": 300, "u": "g", "fuer": "Fr"}, {"name": "Champignons", "n": 200, "u": "g", "fuer": "Di"}, {"name": "Spitzkohl", "n": 525, "u": "g", "fuer": "So"}, {"name": "Paprika", "n": 2, "u": "", "fuer": "Mi"}, {"name": "Lauchzwiebeln", "n": 3, "u": "", "fuer": "Mi"}, {"name": "Petersilie", "n": 1, "u": "Bund", "fuer": "Mo, Di, Sa"}, {"name": "Zitrone", "n": 1, "u": "", "fuer": "Mi"}]}, {"abteilung": "Kühlregal", "artikel": [{"name": "Schlagsahne", "n": 300, "u": "g", "fuer": "Mo, Di, Fr"}, {"name": "Butter", "n": 50, "u": "g", "fuer": "Mo, Mi, Sa"}, {"name": "Milch", "n": 500, "u": "ml", "fuer": "Do"}, {"name": "Eier", "n": 3, "u": "", "fuer": "Do"}, {"name": "Crème fraîche", "n": 150, "u": "g", "fuer": "So"}, {"name": "Schupfnudeln", "n": 375, "u": "g", "fuer": "So"}, {"name": "Parmesan", "n": 25, "u": "g", "fuer": "Di"}]}, {"abteilung": "Fleisch & Fisch", "artikel": [{"name": "Hackfleisch gemischt", "n": 300, "u": "g", "fuer": "Di"}, {"name": "Seelachsfilet", "n": 375, "u": "g", "fuer": "Mi"}, {"name": "Hähnchenbrustfilet", "n": 450, "u": "g", "fuer": "Fr"}, {"name": "Wiener Würstchen", "n": 3, "u": "", "fuer": "Sa"}, {"name": "Schinkenwürfel", "n": 75, "u": "g", "fuer": "Sa"}, {"name": "Speck", "n": 100, "u": "g", "fuer": "So"}]}, {"abteilung": "Brot & Backwaren", "artikel": [{"name": "Baguette", "n": 1, "u": "", "fuer": "Mo"}]}, {"abteilung": "Trockenwaren & Konserven", "artikel": [{"name": "Spaghetti", "n": 300, "u": "g", "fuer": "Di"}, {"name": "Reis", "n": 200, "u": "g", "fuer": "Fr"}, {"name": "Apfelmus", "n": 1, "u": "Glas", "fuer": "Do"}, {"name": "Senf körnig", "n": null, "u": "", "fuer": "Fr"}, {"name": "Soßenbinder hell", "n": null, "u": "", "fuer": "Di, Fr"}]}, {"abteilung": "Tiefkühl", "artikel": [{"name": "Suppengrün TK", "n": 75, "u": "g", "fuer": "Sa"}]}, {"abteilung": "Vermutlich vorrätig", "vorrat": true, "artikel": [{"name": "Mehl", "n": 250, "u": "g"}, {"name": "Gemüsebrühe", "n": null, "u": ""}, {"name": "Öl", "n": null, "u": ""}, {"name": "Salz", "n": null, "u": ""}, {"name": "Pfeffer", "n": null, "u": ""}, {"name": "Zucker", "n": null, "u": ""}, {"name": "Paprika edelsüß", "n": null, "u": ""}]}], "einkauf_bring_url": "https://lukasniestroj.github.io/wochenplan/2026-kw49/einkauf.html"};
+/* ===== ENDE DATEN ===== */
+
+const BRING_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function fmt(n){
+  if (n == null || isNaN(n)) return '';
+  if (n >= 100) return String(Math.round(n / 5) * 5);
+  if (n >= 10) return String(Math.round(n));
+  const r = Math.round(n * 4) / 4;
+  const whole = Math.floor(r), frac = r - whole;
+  const f = {0:'',0.25:'¼',0.5:'½',0.75:'¾'}[frac];
+  if (f === undefined) return r.toLocaleString('de-DE');
+  return (whole ? whole + (f ? ' ' : '') : '') + f || '0';
+}
+function amount(i, factor){
+  if (i.n == null) return esc(i.u || '');
+  return fmt(i.n * factor) + (i.u ? ' ' + esc(i.u) : '');
+}
+// Bring!-Link über die Brückenseite im Repo: öffnet auf Android die App per Intent
+// (package ch.publisheria.bring), sonst deeplink.getbring.com bzw. Bring! Web.
+const BRIDGE = 'https://lukasniestroj.github.io/wochenplan/bring.html';
+function bringHref(url, portions, name){
+  const parser = 'https://api.getbring.com/rest/bringrecipes/parser'
+    + '?url=' + encodeURIComponent(url)
+    + '&baseQuantity=' + encodeURIComponent(PLAN.portionen)
+    + '&requestedQuantity=' + encodeURIComponent(portions);
+  return BRIDGE + '?src=' + encodeURIComponent(btoa(parser)) + (name ? '&name=' + encodeURIComponent(name) : '');
+}
+
+function render(){
+  const portions = Math.max(1, parseInt($('#portions').value, 10) || PLAN.portionen);
+  const factor = portions / PLAN.portionen;
+
+  $('#overview').innerHTML = PLAN.tage.map(d =>
+    `<tr><td><strong>${esc(d.tag)}</strong><br><span class="hint">${esc(d.datum)}</span></td>
+     <td><a href="#r-${esc(d.id)}">${esc(d.gericht)}</a></td><td>${esc(d.minuten)} Min.</td></tr>`).join('');
+
+  $('#recipes').innerHTML = PLAN.tage.map(d => `
+    <article class="recipe" id="r-${esc(d.id)}">
+      <div class="rhead">
+        <div>
+          <div class="day">${esc(d.tag)} · ${esc(d.datum)}</div>
+          <h3>${esc(d.gericht)}</h3>
+          <div class="meta">${esc(d.minuten)} Min. · ${portions} Portionen · Vorlage: <a href="${esc(d.quelle_url)}" target="_blank" rel="noopener">${esc(d.quelle_name)}</a></div>
+        </div>
+        <a class="bring" href="${bringHref(d.bring_url, portions, d.gericht)}" target="_blank" rel="noopener">${BRING_ICON} In Bring! übernehmen</a>
+      </div>
+      <div class="cols">
+        <ul class="ing">${d.zutaten.map(i => `<li>${amount(i, factor)} ${esc(i.name)}</li>`).join('')}</ul>
+        <ol class="steps">${d.schritte.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
+      </div>
+      ${d.tipp ? `<div class="note">💡 ${esc(d.tipp)}</div>` : ''}
+    </article>`).join('');
+
+  $('#bringlist').innerHTML = `<a class="bring week" href="${bringHref(PLAN.einkauf_bring_url, portions, 'Wocheneinkauf')}" target="_blank" rel="noopener">${BRING_ICON} Ganze Woche in Bring!</a>` + PLAN.tage.map(d =>
+    `<a class="bring" href="${bringHref(d.bring_url, portions, d.gericht)}" target="_blank" rel="noopener">${BRING_ICON} ${esc(d.tag.slice(0,2))}: ${esc(d.gericht)}</a>`).join('');
+
+  const saved = loadChecks();
+  $('#shopping').innerHTML = PLAN.einkauf.map((g, gi) => `
+    <div class="group"><h4>${esc(g.abteilung)}</h4>
+      ${g.artikel.map((a, ai) => {
+        const key = gi + ':' + ai;
+        return `<label><input type="checkbox" data-k="${key}" ${saved[key] ? 'checked' : ''}>
+          <span>${esc(a.name)}${(a.n != null || a.u) ? ' – ' + amount(a, g.vorrat ? 1 : factor) : ''}${a.fuer ? ` <span class="used">(${esc(a.fuer)})</span>` : ''}</span></label>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function loadChecks(){ try { return JSON.parse(localStorage.getItem('ep-' + PLAN.titel) || '{}'); } catch(e){ return {}; } }
+function saveChecks(o){ try { localStorage.setItem('ep-' + PLAN.titel, JSON.stringify(o)); } catch(e){} }
+
+document.addEventListener('change', e => {
+  if (e.target.matches('#shopping input[type=checkbox]')) {
+    const o = loadChecks(); o[e.target.dataset.k] = e.target.checked; saveChecks(o);
+  }
+});
+$('#portions').addEventListener('input', render);
+
+$('#copy').addEventListener('click', async () => {
+  const portions = Math.max(1, parseInt($('#portions').value, 10) || PLAN.portionen);
+  const factor = portions / PLAN.portionen;
+  const text = PLAN.einkauf.filter(g => !g.vorrat)
+    .flatMap(g => g.artikel.map(a => a.name + (a.n != null || a.u ? ' ' + amount(a, factor).replace(/&amp;/g,'&') : ''))).join('\n');
+  try { await navigator.clipboard.writeText(text); $('#copymsg').textContent = 'Kopiert ✓'; }
+  catch(e){ const b = $('#copybox'); b.style.display = 'block'; b.value = text; b.select(); $('#copymsg').textContent = 'Text markiert – bitte manuell kopieren.'; }
+});
+
+document.title = PLAN.titel;
+$('#title').textContent = PLAN.titel;
+$('#subtitle').textContent = PLAN.untertitel || '';
+$('#footer').textContent = PLAN.fusszeile || '';
+$('#portions').value = PLAN.portionen;
+render();
+</script>
+</body>
+</html>
